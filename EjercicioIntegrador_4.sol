@@ -79,6 +79,7 @@ contract EjercicioCuatro {
     
     mapping(bytes32 auctionId => Subasta ) public subastas;
     bytes32[] subastasActivas;
+    mapping(bytes32 auctionId => uint256 pos) mappingSubastas;
 
 
     event SubastaCreada(bytes32 indexed _auctionId, address indexed _creator);
@@ -101,8 +102,9 @@ contract EjercicioCuatro {
         s.endTime = _endTime;
         s.creator = payable( msg.sender);
         s.deposit = msg.value;
-        //s.offers[msg.sender] += msg.value;
         subastasActivas.push(_auctionId);
+        uint256 pos = subastasActivas.length - 1;
+        mappingSubastas[_auctionId] = pos;
         emit SubastaCreada(_auctionId, msg.sender);
     }
 
@@ -112,11 +114,10 @@ contract EjercicioCuatro {
         if(subastas[_auctionId].highestBid > msg.value) revert OfertaInvalida();
         if(block.timestamp > subasta.endTime || block.timestamp < subasta.startTime) revert FueraDeTiempo();
         
-        subasta.offers[msg.sender] += msg.value;
-        
+        subasta.offers[msg.sender] += msg.value; 
         
         subasta.highestBid = subasta.offers[msg.sender];
-        //subasta.deposit += msg.value;
+        
         subasta.highestBidder = msg.sender;
     
         if (subasta.endTime - block.timestamp <= 5 minutes) {
@@ -127,7 +128,7 @@ contract EjercicioCuatro {
     }
 
     function finalizarSubasta(bytes32 _auctionId) public {
-        Subasta storage s =subastas[_auctionId];
+        Subasta storage s = subastas[_auctionId];
         if (s.endTime == 0 || s.ended) revert SubastaInexistente();
         if(block.timestamp <= s.endTime) revert SubastaEnMarcha();
         emit SubastaFinalizada(s.highestBidder, s.highestBid);
@@ -138,9 +139,7 @@ contract EjercicioCuatro {
     }
 
     function recuperarOferta(bytes32 _auctionId)  external returns(uint)  {
-        // Permite a los usuarios recuperar su oferta (tanto si ganaron como si perdieron la subasta)
-        //Verifica que la subasta haya finalizado
-        //El smart contract le envía el balance de Ether que tiene a favor del ofertante
+
         Subasta storage s = subastas[_auctionId];
         if(block.timestamp <= s.endTime) revert SubastaEnMarcha();
         
@@ -180,12 +179,10 @@ contract EjercicioCuatro {
             );
     }
     function removeAuction(bytes32 _auctionId) internal {
-        for (uint256 i = 0; i < subastasActivas.length; i++) {
-            if (subastasActivas[i] == _auctionId) {
-                subastasActivas[i] = subastasActivas[subastasActivas.length - 1];
-                subastasActivas.pop();
-                break;
-            }
-        }
+
+        uint256 pos = mappingSubastas[_auctionId];
+        subastasActivas[pos] = subastasActivas[subastasActivas.length - 1];
+        subastasActivas.pop();
+
     }
 }
